@@ -19,7 +19,7 @@ from subprocess import Popen, call, check_output
 import os
 import argparse
 import sys
-
+import uuid
 
 parser = argparse.ArgumentParser(description='dbCAN2 Driver Script')
 
@@ -29,7 +29,7 @@ parser.add_argument('inputType', choices=['protein', 'prok', 'meta'], help='Type
 parser.add_argument('--cluster', '-c', help='Predict CGCs via CGCFinder. This argument requires an auxillary locations file if a protein input is being used')
 parser.add_argument('--dbCANFile',default="dbCAN.txt", help='Indicate the file name of HMM database such as dbCAN.txt, please use the newest one from dbCAN2 website.')
 parser.add_argument('--dia_eval', default=1e-102,type=float, help='DIAMOND E Value')
-parser.add_argument('--dia_cpu', default=2, type=int, help='Number of CPU cores that DIAMOND is allowed to use')
+parser.add_argument('--dia_cpu', default=5, type=int, help='Number of CPU cores that DIAMOND is allowed to use')
 parser.add_argument('--hmm_eval', default=1e-15, type=float, help='HMMER E Value')
 parser.add_argument('--hmm_cov', default=0.35, type=float, help='HMMER Coverage val')
 parser.add_argument('--hmm_cpu', default=1, type=int, help='Number of CPU cores that HMMER is allowed to use')
@@ -68,6 +68,12 @@ def runHmmScan(outPath, hmm_cpu, dbDir, hmm_eval, hmm_cov, db_name):
 ##########################
 # Begin Setup and Input Checks
 
+this = uuid.uuid4().hex
+
+pydir = sys.path[0]
+call(['cp', args.inputFile, '{}/{}'.format(pydir,this)])
+os.chdir(pydir)
+
 dbDir = args.db_dir
 prefix = args.out_pre
 outDir = args.out_dir
@@ -78,9 +84,10 @@ if not dbDir.endswith("/") and len(dbDir) > 0:
 if not outDir.endswith("/") and len(outDir) > 0:
     outDir += "/"
 
+
 outPath = outDir + prefix
 auxFile = ""
-input = args.inputFile
+input = this
 inputType = args.inputType
 find_clusters = False
 if args.cluster != None:
@@ -134,8 +141,8 @@ if args.tools != 'all':
 if inputType == 'prok':
     call(['prodigal', '-i', input, '-a', '%suniInput'%outPath, '-o', '%sprodigal.gff'%outPath, '-f', 'gff', '-q'])
 if inputType == 'meta':
-    # call(['FragGeneScan1.30/run_FragGeneScan.pl', '-genome='+input, '-out=%sfragGeneScan'%outPath, '-complete=1', '-train=complete', '-thread=10'])
-    call(['FragGeneScan', '-s', input, '-o', '%sfragGeneScan'%outPath, '-w 1','-t comlete', '-p 10'])
+    call(['run_FragGeneScan.pl', '-genome='+input, '-out=%sfragGeneScan'%outPath, '-complete=1', '-train=complete', '-thread=1'])
+    # call(['FragGeneScan', '-s', input, '-o', '%sfragGeneScan'%outPath, '-w 1','-t complete', '-p 10'])
 
 #Frag Gene Scan
 if inputType == 'meta':
@@ -145,12 +152,14 @@ if inputType == 'meta':
 if inputType == 'protein':
     call(['cp', input, '%suniInput'%outPath])
 
+call(['sed', '-i', 's/\\*//g', '%suniInput'%outPath])
+
 # End Gene Prediction Tools
 #######################
 # Begin SignalP
 
-signalpos = Popen('signalp -t gram+ %suniInput > %ssignalp.neg' % (outPath, outPath), shell=True)
-signalpneg = Popen('signalp -t gram- %suniInput > %ssignalp.pos' % (outPath, outPath), shell=True)
+#signalpos = Popen('/mibi/users/russel/Software/signalp-4.1/signalp -t gram+ %suniInput > %ssignalp.neg' % (outPath, outPath), shell=True)
+#signalpneg = Popen('/mibi/users/russel/Software/signalp-4.1/signalp -t gram- %suniInput > %ssignalp.pos' % (outPath, outPath), shell=True)
 
 # End SignalP
 #######################
@@ -169,8 +178,7 @@ if tools[2]:
     # numThreads = args.hotpep_cpu
     numThreads = args.hotpep_cpu if count >= args.hotpep_cpu else count                     #number of cores for Hotpep to use, revised by Le Huang 12/17/2018
     count_per_file = count / numThreads                                                #number of genes per core
-    inter = input.split('/')[-1]
-    directory = inter.split('.')[0]
+    directory = input.split('.')[0]
     if not os.path.exists('Hotpep/%s' % directory):
         call(['mkdir','-m','777','Hotpep/%s' % directory])
     num_files = 1
@@ -496,27 +504,27 @@ if find_clusters:
 ####################
 # Begin SignalP combination
 
-print("Waiting on signalP")
-signalpos.wait()
-signalpneg.wait()
-print("SignalP complete")
-with open(outDir+prefix+'temp', 'w') as out:
-    with open(outDir+prefix+'signalp.pos') as f:
-        for line in f:
-            if not line.startswith('#'):
-                row = line.split(' ')
-                row = [x for x in row if x != '']
-                if row[9] == 'Y':
-                    out.write(line)
-    with open(outDir+prefix+'signalp.neg') as f:
-        for line in f:
-            if not line.startswith('#'):
-                row = line.split(' ')
-                row = [x for x in row if x != '']
-                if row[9] == 'Y':
-                    out.write(line)
-call('sort -u '+outDir+prefix+'temp > '+outDir+prefix+'signalp.out', shell=True)
-call(['rm', outDir+prefix+'temp', outDir+prefix+'signalp.pos', outDir+prefix+'signalp.neg'])
+#print("Waiting on signalP")
+#signalpos.wait()
+#signalpneg.wait()
+#print("SignalP complete")
+#with open(outDir+prefix+'temp', 'w') as out:
+#    with open(outDir+prefix+'signalp.pos') as f:
+#        for line in f:
+#            if not line.startswith('#'):
+#                row = line.split(' ')
+#                row = [x for x in row if x != '']
+#                if row[9] == 'Y':
+#                    out.write(line)
+#    with open(outDir+prefix+'signalp.neg') as f:
+#        for line in f:
+#            if not line.startswith('#'):
+#                row = line.split(' ')
+#                row = [x for x in row if x != '']
+#                if row[9] == 'Y':
+#                    out.write(line)
+#call('sort -u '+outDir+prefix+'temp > '+outDir+prefix+'signalp.out', shell=True)
+#call(['rm', outDir+prefix+'temp', outDir+prefix+'signalp.pos', outDir+prefix+'signalp.neg'])
 
 # End SignalP combination
 #######################
@@ -542,7 +550,7 @@ if(os.path.exists(workdir+"Hotpep.out")):
 if(os.path.exists(workdir+"hmmer.out")):
     arr_hmmer = open(workdir+"hmmer.out").readlines()
 
-arr_sigp = open(workdir+"signalp.out").readlines()
+#arr_sigp = open(workdir+"signalp.out").readlines()
 # get the gene numbers
 diamond_genes = []
 for i in range(1,len(arr_diamond)):
@@ -559,11 +567,11 @@ for i in range (1,len(arr_hmmer)):
     row = arr_hmmer[i].split()
     hmmer_genes.append(row[2])
 
-sigp_genes = {}
-for i in range (2,len(arr_sigp)):
-
-    row = arr_sigp[i].split()
-    sigp_genes[row[0]]=row[2]
+#sigp_genes = {}
+#for i in range (2,len(arr_sigp)):
+#
+#    row = arr_sigp[i].split()
+#    sigp_genes[row[0]]=row[2]
 ##Catie Ausland edits BEGIN
 if len(hotpep_genes) > 0:
     if (hotpep_genes[len(hotpep_genes)-1] == None):
@@ -612,14 +620,14 @@ if(arr_hotpep != None) :
 all_genes = unique(hmmer_genes+hotpep_genes+diamond_genes)
 overall_table = []
 with open(workdir+"overview.txt", 'w+') as fp:
-    fp.write("Gene ID\tHMMER\tHotpep\tDIAMOND\tSignalp\t#ofTools\n")
+    fp.write("Gene ID\tHMMER\tHotpep\tDIAMOND\t#ofTools\n")
     for gene in all_genes:
-        hits = {"diamond" : "N", "hmmer" : "N", "hotpep" : "N", "signalp" : "N", "tools" : 0}
-        csv = ["gene", "N", "N", "N", "N", 0]
+        hits = {"diamond" : "N", "hmmer" : "N", "hotpep" : "N", "tools" : 0}
+        csv = ["gene", "N", "N", "N", 0]
         csv[0] = gene
         if(arr_hmmer != None):
             if gene in hmmer_genes:
-                csv[5]+=1
+                csv[4]+=1
                 hits["tools"]+=1
                 txt = []
                 for i in range(len(hmmer_fams[gene])):
@@ -636,7 +644,7 @@ with open(workdir+"overview.txt", 'w+') as fp:
 
         if(arr_hotpep!= None):
             if( gene in hotpep_genes):
-                csv[5]+=1
+                csv[4]+=1
                 hits["tools"]+=1
                 temp = []
                 if gene in hotpep_fams:
@@ -651,7 +659,7 @@ with open(workdir+"overview.txt", 'w+') as fp:
 
         if(arr_diamond != None):
             if(gene in diamond_genes):
-                csv[5]+=1
+                csv[4]+=1
                 hits["tools"]+=1
                 fams = diamond_fams[gene].split("+")
                 hits["diamond"] = ""
@@ -661,20 +669,23 @@ with open(workdir+"overview.txt", 'w+') as fp:
             csv[3] = "-"
             hits["diamond"] = "-"
 
-        if gene in sigp_genes :
-            hits["signalp"] = "Y (1-"+sigp_genes[gene]+")"
-            csv[4] = "Y(1-"+sigp_genes[gene]+")"
+        #if gene in sigp_genes :
+        #    hits["signalp"] = "Y (1-"+sigp_genes[gene]+")"
+        #    csv[4] = "Y(1-"+sigp_genes[gene]+")"
 
 
-        else:
-            hits["geneID"] = gene
-        overall_table.append(hits)
+        #else:
+        #    hits["geneID"] = gene
+        #overall_table.append(hits)
 
 
         temp = "\t".join(str(x) for x in csv) + "\n"
         fp.write(temp)
 
 print ("overview table complete. Saved as "+workdir+"overview.txt")
+call(['rm', '%s' % this])
+call(['rm', '-r', 'Hotpep/%s' % this])
+os.chdir('../')
 # End "blastation.py" to produce overview.txt
 # End script
 
