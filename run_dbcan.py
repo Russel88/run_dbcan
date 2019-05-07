@@ -158,8 +158,8 @@ call(['sed', '-i', 's/\\*//g', '%suniInput'%outPath])
 #######################
 # Begin SignalP
 
-#signalpos = Popen('/mibi/users/russel/Software/signalp-4.1/signalp -t gram+ %suniInput > %ssignalp.neg' % (outPath, outPath), shell=True)
-#signalpneg = Popen('/mibi/users/russel/Software/signalp-4.1/signalp -t gram- %suniInput > %ssignalp.pos' % (outPath, outPath), shell=True)
+#signalpos = Popen('signalp -t gram+ %suniInput > %ssignalp.neg' % (outPath, outPath), shell=True)
+#signalpneg = Popen('signalp -t gram- %suniInput > %ssignalp.pos' % (outPath, outPath), shell=True)
 
 # End SignalP
 #######################
